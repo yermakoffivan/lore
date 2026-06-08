@@ -246,6 +246,14 @@ impl FilterInstance {
         Ok(())
     }
 
+    /// Returns whether `path` is excluded by applying every filter line in
+    /// order, where a later matching line overrides earlier ones.
+    ///
+    /// An inclusion (negated) line can only clear `excluded` and an exclusion
+    /// line can only set it, so a line whose effect equals the current state
+    /// could at most match to no effect. Such lines are skipped before the glob
+    /// match, which avoids evaluating inclusion lines while not yet excluded and
+    /// exclusion lines while already excluded.
     pub fn excludes(&self, path: &RelativePath, is_directory: bool) -> bool {
         if path.is_empty() || path.as_str() == "." {
             return false;
@@ -254,6 +262,9 @@ impl FilterInstance {
         let match_path = path.as_lowercase_str();
         let match_filename = path.name_lowercase();
         for line in &self.lines {
+            if line.negated != excluded {
+                continue;
+            }
             if line.directory && !is_directory {
                 continue;
             }
@@ -262,12 +273,8 @@ impl FilterInstance {
             } else {
                 match_path
             };
-            if line.negated {
-                if glob_match::glob_match(line.glob.as_str(), to_match) {
-                    excluded = false;
-                }
-            } else if glob_match::glob_match(line.glob.as_str(), to_match) {
-                excluded = true;
+            if glob_match::glob_match(line.glob.as_str(), to_match) {
+                excluded = !line.negated;
             }
         }
         excluded
