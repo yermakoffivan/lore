@@ -2563,37 +2563,23 @@ typedef struct lore_revision_tree_child_event_data_t {
   enum lore_error_code_t error_code;
 } lore_revision_tree_child_event_data_t;
 
-// Root-only metadata accompanying `LoreRevisionTreeNodeInfoEventData` when
-// the queried node is the revision root.
-//
-// `is_root` is `1` when the inline fields carry data sourced from the
-// Metadata fragment (parent revision signatures, creation timestamp,
-// author identity, metadata key count); `0` for non-root nodes, in which
-// case the inline fields are zero/default. Keeping the discriminator
-// inline rather than wrapping in `Option<_>` keeps the struct
-// `#[repr(C)]`-stable for cbindgen.
-typedef struct lore_revision_tree_root_info_data_t {
-  // 1 when the inline fields carry root data; 0 otherwise.
-  uint8_t is_root;
-  // The parent revision signatures.
-  struct lore_hash_t parent[2];
-  // The time the revision was created.
-  int64_t creation_timestamp;
-  // The identity of the revision's author.
-  struct lore_string_t author_identity;
-  // The number of metadata keys on the revision.
-  uint32_t metadata_key_count;
-} lore_revision_tree_root_info_data_t;
-
-// Terminal per-call event for `node_info`. Carries the same per-node
-// record as `list_children` plus the preserved `file_id` (the
-// `address.context` slot of the node's original add) and, when the
-// queried node is the root, the Metadata-fragment-derived `root_info`.
+// Terminal per-call event for `node_info`. On success `error_code == None` and
+// the per-node record matches `list_children` plus the preserved `file_id`
+// (the `address.context` slot of the node's original add), with
+// `repository`/`revision` identifying the tree the node belongs to (the
+// handle's own — `node_info` does not follow links). The record is uniform
+// across every node id, including the root; revision-level metadata is a
+// separate concern served by `lore_revision_tree_info`. On failure the record
+// is undefined and `error_code` is populated.
 typedef struct lore_revision_tree_node_info_event_data_t {
   // Correlation id of the originating call.
   uint64_t id;
   // The queried node.
   lore_node_id_t node_id;
+  // Repository the node belongs to.
+  lore_repository_id_t repository;
+  // Revision the node belongs to.
+  struct lore_hash_t revision;
   // The name of the node.
   struct lore_string_t name;
   // The parent node.
@@ -2608,8 +2594,8 @@ typedef struct lore_revision_tree_node_info_event_data_t {
   struct lore_address_t address;
   // The preserved file id of the node.
   struct lore_context_t file_id;
-  // Root metadata, valid only when the node is the revision root.
-  struct lore_revision_tree_root_info_data_t root_info;
+  // The outcome of the call.
+  enum lore_error_code_t error_code;
 } lore_revision_tree_node_info_event_data_t;
 
 // Terminal per-call event for `node_path`. On success `path` is the
@@ -2729,6 +2715,32 @@ typedef struct lore_revision_tree_list_children_begin_event_data_t {
   // The outcome of the call.
   enum lore_error_code_t error_code;
 } lore_revision_tree_list_children_begin_event_data_t;
+
+// Terminal per-call event for `revision_info` (the `lore_revision_tree_info`
+// verb). Carries the loaded revision's record-level metadata: the parent
+// revision signatures (from the State) plus the creation timestamp, author
+// identity, and metadata key count (from the Metadata fragment), alongside the
+// `(repository, revision)` the handle represents. On failure the fields are
+// zeroed and `error_code` is populated. This is revision-scoped, not
+// node-scoped — it takes no node id.
+typedef struct lore_revision_tree_info_event_data_t {
+  // Correlation id of the originating call.
+  uint64_t id;
+  // Repository the revision belongs to.
+  lore_repository_id_t repository;
+  // The loaded revision.
+  struct lore_hash_t revision;
+  // The parent revision signatures.
+  struct lore_hash_t parent[2];
+  // The time the revision was created.
+  int64_t creation_timestamp;
+  // The identity of the revision's author.
+  struct lore_string_t author_identity;
+  // The number of metadata keys on the revision.
+  uint32_t metadata_key_count;
+  // The outcome of the call.
+  enum lore_error_code_t error_code;
+} lore_revision_tree_info_event_data_t;
 
 // Terminal per-item event for `mutable_load`. On success `error_code == None` and `value` is
 // the loaded value hash (`Hash::default()` when the key holds a null/removed value); on miss
@@ -3249,6 +3261,8 @@ enum lore_event_id_t {
   LORE_EVENT_REVISION_TREE_CLOSE_COMPLETE,
   // A list-children call began; carries the target repository and revision.
   LORE_EVENT_REVISION_TREE_LIST_CHILDREN_BEGIN,
+  // Revision-record metadata for a loaded revision tree.
+  LORE_EVENT_REVISION_TREE_INFO,
   // A mutable-load item completed.
   LORE_EVENT_STORAGE_MUTABLE_LOAD_ITEM_COMPLETE,
   // A mutable-store item completed.
@@ -3491,6 +3505,7 @@ typedef struct lore_event_t {
     struct lore_revision_tree_commit_complete_event_data_t revision_tree_commit_complete;
     struct lore_revision_tree_close_complete_event_data_t revision_tree_close_complete;
     struct lore_revision_tree_list_children_begin_event_data_t revision_tree_list_children_begin;
+    struct lore_revision_tree_info_event_data_t revision_tree_info;
     struct lore_storage_mutable_load_item_complete_event_data_t storage_mutable_load_item_complete;
     struct lore_storage_mutable_store_item_complete_event_data_t storage_mutable_store_item_complete;
     struct lore_storage_mutable_compare_and_swap_item_complete_event_data_t storage_mutable_compare_and_swap_item_complete;
@@ -5059,9 +5074,17 @@ typedef struct lore_revision_tree_node_info_args_t {
   uint64_t id;
   // Loaded revision-tree handle to read from
   struct lore_revision_tree_t handle;
-  // Node whose record is fetched; the root id also yields `root_info`
+  // Node whose record is fetched
   lore_node_id_t node_id;
 } lore_revision_tree_node_info_args_t;
+
+// Arguments for `lore_revision_tree_info`.
+typedef struct lore_revision_tree_info_args_t {
+  // Per-call correlation id echoed back in events
+  uint64_t id;
+  // Loaded revision-tree handle whose revision metadata is fetched
+  struct lore_revision_tree_t handle;
+} lore_revision_tree_info_args_t;
 
 // Arguments for `lore_revision_tree_node_path`.
 typedef struct lore_revision_tree_node_path_args_t {
@@ -10734,3 +10757,32 @@ int32_t lore_revision_tree_list_children(const struct lore_global_args_t *global
 void lore_revision_tree_list_children_async(const struct lore_global_args_t *globals,
                                             const struct lore_revision_tree_list_children_args_t *args,
                                             struct lore_event_callback_config_t callback);
+
+// Fetch the per-node record for a single node id in a loaded revision tree.
+//
+// | Terminal event                          | Payload                                     | Notes                                                          |
+// |-----------------------------------------|---------------------------------------------|----------------------------------------------------------------|
+// | `LORE_EVENT_REVISION_TREE_NODE_INFO`    | `lore_revision_tree_node_info_event_data_t` | Carries the node record, uniform across every node id (revision metadata: `lore_revision_tree_info`) |
+int32_t lore_revision_tree_node_info(const struct lore_global_args_t *globals,
+                                     const struct lore_revision_tree_node_info_args_t *args,
+                                     struct lore_event_callback_config_t callback);
+
+// Fetch the per-node record for a single node id (async variant).
+void lore_revision_tree_node_info_async(const struct lore_global_args_t *globals,
+                                        const struct lore_revision_tree_node_info_args_t *args,
+                                        struct lore_event_callback_config_t callback);
+
+// Fetch the loaded revision's record-level metadata (parents, creation
+// timestamp, author identity, metadata key count). Revision-scoped — no node id.
+//
+// | Terminal event                     | Payload                                | Notes                                                   |
+// |------------------------------------|----------------------------------------|---------------------------------------------------------|
+// | `LORE_EVENT_REVISION_TREE_INFO`    | `lore_revision_tree_info_event_data_t` | Carries the revision record metadata for the handle     |
+int32_t lore_revision_tree_info(const struct lore_global_args_t *globals,
+                                const struct lore_revision_tree_info_args_t *args,
+                                struct lore_event_callback_config_t callback);
+
+// Fetch the loaded revision's record-level metadata (async variant).
+void lore_revision_tree_info_async(const struct lore_global_args_t *globals,
+                                   const struct lore_revision_tree_info_args_t *args,
+                                   struct lore_event_callback_config_t callback);

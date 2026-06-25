@@ -25,7 +25,7 @@ use crate::revision_tree::handle::LoreRevisionTree;
 /// Arguments for `lore_revision_tree_close`.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, PartialEq, Deserialize, Serialize, LoreArgs)]
-#[handler(close_local)]
+#[handler(close_impl)]
 pub struct LoreRevisionTreeCloseArgs {
     /// Per-call correlation id echoed back in events
     pub id: u64,
@@ -64,10 +64,10 @@ pub async fn close(
     args: LoreRevisionTreeCloseArgs,
     callback: LoreEventCallback,
 ) -> i32 {
-    dispatch_call(globals, args, callback, close_local).await
+    dispatch_call(globals, args, callback, close_impl).await
 }
 
-async fn close_local(
+async fn close_impl(
     globals: LoreGlobalArgs,
     args: LoreRevisionTreeCloseArgs,
     callback: LoreEventCallback,

@@ -100,7 +100,9 @@ Every read operation has sync and async variants. Results are delivered as one o
 
 - `lore_revision_tree_list_children(handle, parent_node_id)` — server-streaming. Emits one `child` event per entry carrying `(node_id, name, parent_id, kind, mode, size, address)`, terminated by a list-end event. Designed for directories of arbitrary cardinality; the caller pays the cost of each entry as it arrives.
 
-- `lore_revision_tree_node_info(handle, node_id)` — single record event with the same fields as `list_children`. For the root node, additionally carries revision-record metadata: parent revision signature, creation timestamp, author identity, metadata key set.
+- `lore_revision_tree_node_info(handle, node_id)` — single record event with the same fields as `list_children`. The record is uniform across every node id, including the root; revision-record metadata is a separate concern (see `lore_revision_tree_info`).
+
+- `lore_revision_tree_info(handle)` — single event carrying the loaded revision's record-level metadata: parent revision signatures, creation timestamp, author identity, metadata key count. Revision-scoped — takes no node id.
 
 - `lore_revision_tree_node_path(handle, node_id)` — helper that walks parent pointers and assembles the full UTF-8 path string. Used for logging, display, or other cases where the caller actually needs the path; not used in hot loops.
 
@@ -219,7 +221,7 @@ The example walks the full lifecycle in one place: load (step 1) is the only ent
 
 - **On-disk format** — N/A. The 320-byte revision record, the 64KiB tree block layout, the BLAKE3-hashed content-addressed fragments, and the partition / context plumbing all stay as-is. The new surface only writes data that the file-system-based path already writes today.
 
-- **CLI and public API** — Additive. New `lore_revision_*` entry points appear in `lore-capi/lore.h`: `lore_revision_tree_load_async`, `lore_revision_tree_resolve_path_async`, `lore_revision_tree_list_children_async`, `lore_revision_tree_node_info_async`, `lore_revision_tree_node_path_async`, `lore_revision_tree_add_async`, `lore_revision_tree_delete_async`, `lore_revision_tree_modify_async`, `lore_revision_tree_move_async`, `lore_revision_tree_metadata_set_async`, `lore_revision_tree_commit_async`, `lore_revision_tree_close_async`, plus the sync variants of each. One new type alias is introduced (`lore_repository_id_t = lore_partition_t`); the underlying partition type is unchanged. New event tags are appended to `lore_event_type_t`. No existing entry point's signature, semantics, or event tag changes. The `lore` CLI gains no new subcommands in this proposal (a future LEP could add a low-level CLI surface; out of scope here). Existing scripts and integrations are unaffected.
+- **CLI and public API** — Additive. New `lore_revision_*` entry points appear in `lore-capi/lore.h`: `lore_revision_tree_load_async`, `lore_revision_tree_resolve_path_async`, `lore_revision_tree_list_children_async`, `lore_revision_tree_node_info_async`, `lore_revision_tree_info_async`, `lore_revision_tree_node_path_async`, `lore_revision_tree_add_async`, `lore_revision_tree_delete_async`, `lore_revision_tree_modify_async`, `lore_revision_tree_move_async`, `lore_revision_tree_metadata_set_async`, `lore_revision_tree_commit_async`, `lore_revision_tree_close_async`, plus the sync variants of each. One new type alias is introduced (`lore_repository_id_t = lore_partition_t`); the underlying partition type is unchanged. New event tags are appended to `lore_event_type_t`. No existing entry point's signature, semantics, or event tag changes. The `lore` CLI gains no new subcommands in this proposal (a future LEP could add a low-level CLI surface; out of scope here). Existing scripts and integrations are unaffected.
 
 ## Non-Functional Considerations
 

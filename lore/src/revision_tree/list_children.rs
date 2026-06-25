@@ -37,7 +37,7 @@ use crate::revision_tree::handle::LoreRevisionTree;
 /// Arguments for `lore_revision_tree_list_children`.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, PartialEq, Deserialize, Serialize, LoreArgs)]
-#[handler(list_children_local)]
+#[handler(list_children_impl)]
 pub struct LoreRevisionTreeListChildrenArgs {
     /// Per-call correlation id echoed back in events
     pub id: u64,
@@ -175,10 +175,10 @@ pub async fn list_children(
     args: LoreRevisionTreeListChildrenArgs,
     callback: LoreEventCallback,
 ) -> i32 {
-    dispatch_call(globals, args, callback, list_children_local).await
+    dispatch_call(globals, args, callback, list_children_impl).await
 }
 
-async fn list_children_local(
+async fn list_children_impl(
     globals: LoreGlobalArgs,
     args: LoreRevisionTreeListChildrenArgs,
     callback: LoreEventCallback,

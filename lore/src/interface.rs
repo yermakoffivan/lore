@@ -7342,3 +7342,67 @@ pub extern "C" fn lore_revision_tree_list_children_async(
         crate::revision_tree::list_children::list_children,
     );
 }
+
+pub type LoreRevisionTreeNodeInfoArgs =
+    crate::revision_tree::node_info::LoreRevisionTreeNodeInfoArgs;
+
+/// Fetch the per-node record for a single node id in a loaded revision tree.
+///
+/// | Terminal event                          | Payload                                     | Notes                                                          |
+/// |-----------------------------------------|---------------------------------------------|----------------------------------------------------------------|
+/// | `LORE_EVENT_REVISION_TREE_NODE_INFO`    | `lore_revision_tree_node_info_event_data_t` | Carries the node record, uniform across every node id (revision metadata: `lore_revision_tree_info`) |
+#[unsafe(no_mangle)]
+pub extern "C" fn lore_revision_tree_node_info(
+    globals: &LoreGlobalArgs,
+    args: &LoreRevisionTreeNodeInfoArgs,
+    callback: LoreEventCallbackConfig,
+) -> i32 {
+    run_synchronously(
+        globals,
+        args,
+        callback,
+        crate::revision_tree::node_info::node_info,
+    )
+}
+
+/// Fetch the per-node record for a single node id (async variant).
+#[unsafe(no_mangle)]
+pub extern "C" fn lore_revision_tree_node_info_async(
+    globals: &LoreGlobalArgs,
+    args: &LoreRevisionTreeNodeInfoArgs,
+    callback: LoreEventCallbackConfig,
+) {
+    run_asynchronously(
+        globals,
+        args,
+        callback,
+        crate::revision_tree::node_info::node_info,
+    );
+}
+
+pub type LoreRevisionTreeInfoArgs = crate::revision_tree::info::LoreRevisionTreeInfoArgs;
+
+/// Fetch the loaded revision's record-level metadata (parents, creation
+/// timestamp, author identity, metadata key count). Revision-scoped — no node id.
+///
+/// | Terminal event                     | Payload                                | Notes                                                   |
+/// |------------------------------------|----------------------------------------|---------------------------------------------------------|
+/// | `LORE_EVENT_REVISION_TREE_INFO`    | `lore_revision_tree_info_event_data_t` | Carries the revision record metadata for the handle     |
+#[unsafe(no_mangle)]
+pub extern "C" fn lore_revision_tree_info(
+    globals: &LoreGlobalArgs,
+    args: &LoreRevisionTreeInfoArgs,
+    callback: LoreEventCallbackConfig,
+) -> i32 {
+    run_synchronously(globals, args, callback, crate::revision_tree::info::info)
+}
+
+/// Fetch the loaded revision's record-level metadata (async variant).
+#[unsafe(no_mangle)]
+pub extern "C" fn lore_revision_tree_info_async(
+    globals: &LoreGlobalArgs,
+    args: &LoreRevisionTreeInfoArgs,
+    callback: LoreEventCallbackConfig,
+) {
+    run_asynchronously(globals, args, callback, crate::revision_tree::info::info);
+}

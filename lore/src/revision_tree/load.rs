@@ -42,7 +42,7 @@ use crate::storage::handle::LoreStore;
 /// Arguments for `lore_revision_tree_load`.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, PartialEq, Deserialize, Serialize, LoreArgs)]
-#[handler(load_local)]
+#[handler(load_impl)]
 pub struct LoreRevisionTreeLoadArgs {
     /// Open storage handle the revision tree is loaded against
     pub store: LoreStore,
@@ -104,10 +104,10 @@ pub async fn load(
     args: LoreRevisionTreeLoadArgs,
     callback: LoreEventCallback,
 ) -> i32 {
-    dispatch_call(globals, args, callback, load_local).await
+    dispatch_call(globals, args, callback, load_impl).await
 }
 
-async fn load_local(
+async fn load_impl(
     globals: LoreGlobalArgs,
     args: LoreRevisionTreeLoadArgs,
     callback: LoreEventCallback,

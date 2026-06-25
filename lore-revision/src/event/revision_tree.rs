@@ -78,21 +78,23 @@ pub struct LoreRevisionTreeChildEventData {
     pub error_code: LoreErrorCode,
 }
 
-/// Root-only metadata accompanying `LoreRevisionTreeNodeInfoEventData` when
-/// the queried node is the revision root.
-///
-/// `is_root` is `1` when the inline fields carry data sourced from the
-/// Metadata fragment (parent revision signatures, creation timestamp,
-/// author identity, metadata key count); `0` for non-root nodes, in which
-/// case the inline fields are zero/default. Keeping the discriminator
-/// inline rather than wrapping in `Option<_>` keeps the struct
-/// `#[repr(C)]`-stable for cbindgen.
+/// Terminal per-call event for `revision_info` (the `lore_revision_tree_info`
+/// verb). Carries the loaded revision's record-level metadata: the parent
+/// revision signatures (from the State) plus the creation timestamp, author
+/// identity, and metadata key count (from the Metadata fragment), alongside the
+/// `(repository, revision)` the handle represents. On failure the fields are
+/// zeroed and `error_code` is populated. This is revision-scoped, not
+/// node-scoped — it takes no node id.
 #[repr(C)]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LoreRevisionTreeRootInfoData {
-    /// 1 when the inline fields carry root data; 0 otherwise.
-    pub is_root: u8,
+pub struct LoreRevisionTreeInfoEventData {
+    /// Correlation id of the originating call.
+    pub id: u64,
+    /// Repository the revision belongs to.
+    pub repository: RepositoryId,
+    /// The loaded revision.
+    pub revision: Hash,
     /// The parent revision signatures.
     pub parent: [Hash; 2],
     /// The time the revision was created.
@@ -101,20 +103,30 @@ pub struct LoreRevisionTreeRootInfoData {
     pub author_identity: LoreString,
     /// The number of metadata keys on the revision.
     pub metadata_key_count: u32,
+    /// The outcome of the call.
+    pub error_code: LoreErrorCode,
 }
 
-/// Terminal per-call event for `node_info`. Carries the same per-node
-/// record as `list_children` plus the preserved `file_id` (the
-/// `address.context` slot of the node's original add) and, when the
-/// queried node is the root, the Metadata-fragment-derived `root_info`.
+/// Terminal per-call event for `node_info`. On success `error_code == None` and
+/// the per-node record matches `list_children` plus the preserved `file_id`
+/// (the `address.context` slot of the node's original add), with
+/// `repository`/`revision` identifying the tree the node belongs to (the
+/// handle's own — `node_info` does not follow links). The record is uniform
+/// across every node id, including the root; revision-level metadata is a
+/// separate concern served by `lore_revision_tree_info`. On failure the record
+/// is undefined and `error_code` is populated.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoreRevisionTreeNodeInfoEventData {
     /// Correlation id of the originating call.
     pub id: u64,
     /// The queried node.
     pub node_id: NodeID,
+    /// Repository the node belongs to.
+    pub repository: RepositoryId,
+    /// Revision the node belongs to.
+    pub revision: Hash,
     /// The name of the node.
     pub name: LoreString,
     /// The parent node.
@@ -129,8 +141,8 @@ pub struct LoreRevisionTreeNodeInfoEventData {
     pub address: Address,
     /// The preserved file id of the node.
     pub file_id: Context,
-    /// Root metadata, valid only when the node is the revision root.
-    pub root_info: LoreRevisionTreeRootInfoData,
+    /// The outcome of the call.
+    pub error_code: LoreErrorCode,
 }
 
 /// Terminal per-call event for `node_path`. On success `path` is the

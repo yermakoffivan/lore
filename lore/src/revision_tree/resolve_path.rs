@@ -31,7 +31,7 @@ use crate::revision_tree::handle::LoreRevisionTree;
 /// Arguments for `lore_revision_tree_resolve_path`.
 #[repr(C)]
 #[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize, LoreArgs)]
-#[handler(resolve_path_local)]
+#[handler(resolve_path_impl)]
 pub struct LoreRevisionTreeResolvePathArgs {
     /// Per-call correlation id echoed back in events
     pub id: u64,
@@ -90,10 +90,10 @@ pub async fn resolve_path(
     args: LoreRevisionTreeResolvePathArgs,
     callback: LoreEventCallback,
 ) -> i32 {
-    dispatch_call(globals, args, callback, resolve_path_local).await
+    dispatch_call(globals, args, callback, resolve_path_impl).await
 }
 
-async fn resolve_path_local(
+async fn resolve_path_impl(
     globals: LoreGlobalArgs,
     args: LoreRevisionTreeResolvePathArgs,
     callback: LoreEventCallback,

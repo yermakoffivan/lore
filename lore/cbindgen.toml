@@ -72,6 +72,7 @@ include = [
     "LoreRevisionTreeResolvePathArgs",
     "LoreRevisionTreeListChildrenArgs",
     "LoreRevisionTreeNodeInfoArgs",
+    "LoreRevisionTreeInfoArgs",
     "LoreRevisionTreeNodePathArgs",
     "LoreRevisionTreeAddArgs",
     "LoreRevisionTreeDeleteArgs",
@@ -474,7 +475,7 @@ include = [
 "LoreRevisionTreeResolvePathCompleteEventData" = "lore_revision_tree_resolve_path_complete_event_data_t"
 "LoreRevisionTreeChildEventData" = "lore_revision_tree_child_event_data_t"
 "LoreRevisionTreeNodeInfoEventData" = "lore_revision_tree_node_info_event_data_t"
-"LoreRevisionTreeRootInfoData" = "lore_revision_tree_root_info_data_t"
+"LoreRevisionTreeInfoEventData" = "lore_revision_tree_info_event_data_t"
 "LoreRevisionTreeNodePathEventData" = "lore_revision_tree_node_path_event_data_t"
 "LoreRevisionTreeAddCompleteEventData" = "lore_revision_tree_add_complete_event_data_t"
 "LoreRevisionTreeDeleteCompleteEventData" = "lore_revision_tree_delete_complete_event_data_t"
@@ -491,6 +492,7 @@ include = [
 "LoreRevisionTreeResolvePathArgs" = "lore_revision_tree_resolve_path_args_t"
 "LoreRevisionTreeListChildrenArgs" = "lore_revision_tree_list_children_args_t"
 "LoreRevisionTreeNodeInfoArgs" = "lore_revision_tree_node_info_args_t"
+"LoreRevisionTreeInfoArgs" = "lore_revision_tree_info_args_t"
 "LoreRevisionTreeNodePathArgs" = "lore_revision_tree_node_path_args_t"
 "LoreRevisionTreeAddArgs" = "lore_revision_tree_add_args_t"
 "LoreRevisionTreeDeleteArgs" = "lore_revision_tree_delete_args_t"

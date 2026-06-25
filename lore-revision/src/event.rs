@@ -84,6 +84,7 @@ use crate::event::revision_tree::LoreRevisionTreeChildEventData;
 use crate::event::revision_tree::LoreRevisionTreeCloseCompleteEventData;
 use crate::event::revision_tree::LoreRevisionTreeCommitCompleteEventData;
 use crate::event::revision_tree::LoreRevisionTreeDeleteCompleteEventData;
+use crate::event::revision_tree::LoreRevisionTreeInfoEventData;
 use crate::event::revision_tree::LoreRevisionTreeListChildrenBeginEventData;
 use crate::event::revision_tree::LoreRevisionTreeLoadedEventData;
 use crate::event::revision_tree::LoreRevisionTreeMetadataGetCompleteEventData;
@@ -342,9 +343,10 @@ impl<'de> serde::Deserialize<'de> for LoreBytes {
 /// cbindgen:prefix-with-name
 /// cbindgen:rename-all=ScreamingSnakeCase
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub enum LoreErrorCode {
     /// No error; the operation succeeded.
+    #[default]
     None = 0,
     /// The arguments supplied to the operation were invalid.
     InvalidArguments = 1,
@@ -1101,6 +1103,8 @@ pub enum LoreEvent {
     RevisionTreeCloseComplete(LoreRevisionTreeCloseCompleteEventData),
     /// A list-children call began; carries the target repository and revision.
     RevisionTreeListChildrenBegin(LoreRevisionTreeListChildrenBeginEventData),
+    /// Revision-record metadata for a loaded revision tree.
+    RevisionTreeInfo(LoreRevisionTreeInfoEventData),
     // Mutable-store API events are appended here rather than grouped with the other storage
     // events above so that adding them does not renumber the `#[repr(C, u32)]` discriminants of
     // the existing variants — new variants go at the end of this enum.
