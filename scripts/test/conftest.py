@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -167,6 +168,19 @@ def global_dir_name(tmp_path_factory):
     yield path
 
 
+def _service_unreachable(output):
+    """Whether a probe failed because it could not reach the service.
+
+    On Windows the failure also carries WinSock error 10022, which is kept as a
+    separate marker rather than relying on the wrapping context alone. It is
+    scoped to Windows so that a repository path echoed back in the output cannot
+    match it by accident on the other platforms.
+    """
+    if "connecting to local socket" in output:
+        return True
+    return platform.system() == "Windows" and "10022" in output
+
+
 def _wait_for_service_ready(lore_executable_path, service_process, attempts=30):
     """Block until the background service answers a probe."""
     probe_env = os.environ.copy()
@@ -178,13 +192,13 @@ def _wait_for_service_ready(lore_executable_path, service_process, attempts=30):
                 f"{service_process.returncode}"
             )
         probe = subprocess.run(
-            [lore_executable_path, "repository", "list"],
+            [lore_executable_path, "status"],
             capture_output=True,
             text=True,
             env=probe_env,
         )
         out = probe.stdout + probe.stderr
-        if "connecting to local socket" not in out and "10022" not in out:
+        if not _service_unreachable(out):
             return
         sleep(1)
     pytest.fail("Timed out waiting for Lore background service to accept connections")
@@ -200,7 +214,12 @@ def background_lore_service(lore_executable_path):
 
     yield service_process
 
-    service_process.kill()
+    service_process.terminate()
+    try:
+        service_process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        logger.warning("Lore service did not exit on terminate, killing it")
+        service_process.kill()
 
 
 @pytest.fixture(scope="session")
