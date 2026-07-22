@@ -205,6 +205,35 @@ def _wait_for_service_ready(lore_executable_path, service_process, attempts=30):
 
 
 @pytest.fixture(scope="function")
+def lore_service_in_directory(lore_executable_path, global_dir_name):
+    """Starts the service in a chosen directory, for tests that need the
+    service's own working directory to differ from the caller's. The service
+    shares the test's isolated global config so shared stores it creates land
+    where the client looks for them."""
+    processes = []
+
+    def start(directory):
+        env = os.environ.copy()
+        env["LORE_GLOBAL_PATH"] = global_dir_name
+        service_process = subprocess.Popen(
+            [lore_executable_path, "service", "run"], cwd=str(directory), env=env
+        )
+        processes.append(service_process)
+        _wait_for_service_ready(lore_executable_path, service_process)
+        return service_process
+
+    yield start
+
+    for service_process in processes:
+        service_process.terminate()
+        try:
+            service_process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            logger.warning("Lore service did not exit on terminate, killing it")
+            service_process.kill()
+
+
+@pytest.fixture(scope="function")
 def background_lore_service(lore_executable_path):
     command_args = [lore_executable_path, "service", "run"]
     logger.info("Executing Lore service command: %s", command_args)
